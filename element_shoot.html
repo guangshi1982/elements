@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Element Shoot</title>
+  <style>
+    html,body{margin:0;height:100%;font-family:sans-serif;background:#111;color:#fff;overflow:hidden}
+    #title,#game{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    button,input{font-size:1rem;padding:0.45rem 1rem;margin:0.3rem;border:none;border-radius:4px}
+    canvas{background:#000;border-top:2px solid #444}
+    #hud{display:flex;gap:1.2rem;justify-content:center;align-items:center;padding:0.4rem;background:#222;width:100%}
+    #inputRow{padding:0.3rem;background:#222;width:100%;display:flex;justify-content:center}
+    #userInput{width:200px;text-align:center}
+    #toast{position:absolute;bottom:18px;right:18px;max-width:280px;background:#222;border:1px solid #888;border-radius:6px;
+           padding:0.65rem 1rem;font-size:0.9rem;line-height:1.4;opacity:0;transform:translateY(20px);pointer-events:none;
+           transition:opacity .3s,transform .3s;}
+    #toast.show{opacity:1;transform:translateY(0);}
+  </style>
+</head>
+
+<body>
+<!-- ── タイトル ── -->
+<div id="title">
+  <h1 style="margin-bottom:.5rem">ELEMENT&nbsp;SHOOT</h1>
+
+  <div style="margin-bottom:.8rem">
+    <label><input type="radio" name="mode" value="A" checked> 記号→名前 (MODE A)</label><br>
+    <label><input type="radio" name="mode" value="B"> 名前→記号 (MODE B)</label>
+  </div>
+
+  <div>
+    ゲーム時間 (秒):
+    <input id="timeInput" type="number" min="10" max="600" value="60"
+           style="width:70px;text-align:right">
+  </div>
+  <div>
+    ライフ数 (0 = ∞):
+    <input id="lifeInput" type="number" min="0" max="99" value="3"
+           style="width:60px;text-align:right">
+  </div>
+
+  <button id="startBtn">▶ START</button>
+</div>
+
+<!-- ── ゲーム ── -->
+<div id="game" style="display:none;flex-direction:column;align-items:center">
+  <div id="hud">
+    <span id="timer">60 s</span>
+    <span id="score">Score 0</span>
+    <span id="lives">♥♥♥</span>
+    <span id="labelMode"></span>
+    <button id="stopBtn" style="background:#c33">STOP</button>
+  </div>
+
+  <canvas id="field" width="480" height="640"></canvas>
+
+  <div id="inputRow">
+    <input id="userInput" placeholder="タイプして Enter" autocomplete="off">
+  </div>
+</div>
+
+<!-- ── トースト ── -->
+<div id="toast"></div>
+
+<script>
+/* ========= 元素データ（抜粋 20） ========= */
+const ELEMENTS=[
+ {num:1,sym:'H',en:'Hydrogen',ja:'水素',fact:'宇宙で最も多い元素。'},
+ {num:2,sym:'He',en:'Helium',ja:'ヘリウム',fact:'風船や低温冷却に使用。'},
+ {num:3,sym:'Li',en:'Lithium',ja:'リチウム',fact:'充電池の正極材料。'},
+ {num:4,sym:'Be',en:'Beryllium',ja:'ベリリウム',fact:'X線管の窓材など。'},
+ {num:5,sym:'B',en:'Boron',ja:'ホウ素',fact:'ホウ酸や耐熱ガラス。'},
+ {num:6,sym:'C',en:'Carbon',ja:'炭素',fact:'ダイヤモンド・グラフェン。'},
+ {num:7,sym:'N',en:'Nitrogen',ja:'窒素',fact:'空気の78% を占める。'},
+ {num:8,sym:'O',en:'Oxygen',ja:'酸素',fact:'呼吸に必須の元素。'},
+ {num:9,sym:'F',en:'Fluorine',ja:'フッ素',fact:'フッ化物やテフロン。'},
+ {num:10,sym:'Ne',en:'Neon',ja:'ネオン',fact:'ネオン管に使用。'},
+ {num:11,sym:'Na',en:'Sodium',ja:'ナトリウム',fact:'食塩やナトリウム灯。'},
+ {num:12,sym:'Mg',en:'Magnesium',ja:'マグネシウム',fact:'軽量合金材料。'},
+ {num:13,sym:'Al',en:'Aluminium',ja:'アルミニウム',fact:'航空機材料など。'},
+ {num:14,sym:'Si',en:'Silicon',ja:'ケイ素',fact:'半導体の主材料。'},
+ {num:15,sym:'P',en:'Phosphorus',ja:'リン',fact:'肥料やマッチ頭薬。'},
+ {num:16,sym:'S',en:'Sulfur',ja:'硫黄',fact:'火山・ゴム加硫に利用。'},
+ {num:17,sym:'Cl',en:'Chlorine',ja:'塩素',fact:'消毒や PVC 原料。'},
+ {num:18,sym:'Ar',en:'Argon',ja:'アルゴン',fact:'不活性ガス溶接に。'},
+ {num:19,sym:'K',en:'Potassium',ja:'カリウム',fact:'肥料成分。'},
+ {num:20,sym:'Ca',en:'Calcium',ja:'カルシウム',fact:'骨や石灰石。'}
+];
+
+/* ========= DOM & 基本 ========= */
+const $=s=>document.querySelector(s);
+const titleDiv=$("#title"),gameDiv=$("#game"),canvas=$("#field"),ctx=canvas.getContext("2d");
+const input=$("#userInput"),timeInput=$("#timeInput"),lifeInput=$("#lifeInput");
+const timerEl=$("#timer"),scoreEl=$("#score"),livesEl=$("#lives"),labelMode=$("#labelMode"),toast=$("#toast");
+
+/* ゲーム状態 */
+let mode="A",score=0,lives=0,infinite=false;
+let totalTime=60,remain=60;
+let elems=[],bullets=[],explosions=[];
+let spawnTimer=0,running=false,prevTime=0,toastTimer;
+const spawnInterval=1200,fallSpeed=70,bulletSpeed=500;
+
+/* ========= 便利関数 ========= */
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const dist=(x1,y1,x2,y2)=>Math.hypot(x1-x2,y1-y2);
+const hintOf=d=>mode==="A"?`${d.en}/${d.ja}`:d.sym;
+function updateLives(){livesEl.textContent=infinite?"∞":"♥".repeat(lives);}
+
+/* ========= 開始・停止 ========= */
+$("#startBtn").onclick=()=>{
+  mode=$("input[name='mode']:checked").value;
+  totalTime=remain=parseInt(timeInput.value)||60;
+  const v=parseInt(lifeInput.value);infinite=!v;lives=infinite?Infinity:v||1;updateLives();
+  labelMode.textContent=mode==="A"?"MODE A":"MODE B";
+  titleDiv.style.display="none";gameDiv.style.display="flex";
+  reset();running=true;prevTime=performance.now();requestAnimationFrame(loop);
+  input.value="";input.focus();
+};
+$("#stopBtn").onclick=()=>endGame("中断");
+
+function reset(){score=0;elems=[];bullets=[];explosions=[];spawnTimer=0;scoreEl.textContent="Score 0";timerEl.textContent=`${remain}s`;}
+
+/* ========= ループ ========= */
+function loop(now){
+  const dt=(now-prevTime)/1000;prevTime=now;
+  if(running){update(dt);draw();requestAnimationFrame(loop);}
+}
+
+/* ========= 更新 ========= */
+function update(dt){
+  remain-=dt;if(remain<=0){endGame("時間切れ");return;}timerEl.textContent=`${Math.ceil(remain)}s`;
+
+  spawnTimer+=dt*1000;if(spawnTimer>=spawnInterval){spawn();spawnTimer=0;}
+  elems.forEach(e=>e.y+=fallSpeed*dt);
+  elems=elems.filter(e=>{if(e.y>canvas.height-40){loseLife();return false;}return true;});
+
+  const delBul=new Set();
+  bullets.forEach(b=>{
+    b.x+=b.vx*dt;b.y+=b.vy*dt;
+    if(dist(b.x,b.y,b.tx,b.ty)<10){
+      delBul.add(b);
+      const idx=elems.findIndex(el=>el===b.target);
+      if(idx!==-1){explode(b.tx,b.ty);elems.splice(idx,1);addScore(100);toastElem(b.target.data);}
+    }
+  });
+  bullets=bullets.filter(b=>!delBul.has(b)&&b.y>-30);
+
+  explosions.forEach(ex=>{ex.life-=dt;ex.r+=120*dt;ex.alpha=Math.max(0,ex.life/ex.maxLife);});
+  explosions=explosions.filter(ex=>ex.life>0);
+}
+
+/* ========= 描画 ========= */
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.font="24px sans-serif";ctx.textAlign="center";
+  elems.forEach(e=>{
+    ctx.fillStyle="#fff";ctx.fillText(e.display,e.x,e.y);
+    if(e.y>canvas.height/2){
+      ctx.font="16px sans-serif";ctx.fillStyle="#8cf";
+      const hint=hintOf(e.data),w=ctx.measureText(hint).width+10,margin=15;
+      let hx=e.x+margin,align="left";
+      if(hx+w>canvas.width){hx=e.x-margin;align="right";}
+      if(hx<0){hx=e.x+margin;align="left";}
+      ctx.textAlign=align;ctx.fillText(hint,hx,e.y+4);
+      ctx.font="24px sans-serif";ctx.textAlign="center";
+    }
+  });
+  ctx.fillStyle="#f66";bullets.forEach(b=>{ctx.beginPath();ctx.arc(b.x,b.y,4,0,Math.PI*2);ctx.fill();});
+  explosions.forEach(ex=>{ctx.globalAlpha=ex.alpha;ctx.fillStyle="orange";ctx.beginPath();ctx.arc(ex.x,ex.y,ex.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;});
+}
+
+/* ========= 生成・弾・爆発 ========= */
+function spawn(){
+  let d,attempt=0;do{d=ELEMENTS[Math.floor(Math.random()*ELEMENTS.length)];attempt++;}while(elems.some(e=>e.data.sym===d.sym)&&attempt<15);
+  const disp=mode==="A"?d.sym:(Math.random()<.5?d.en:d.ja);
+  elems.push({data:d,display:disp,x:rand(40,canvas.width-40),y:-20});
+}
+function fire(target){
+  const sx=canvas.width/2,sy=canvas.height-30,dx=target.x-sx,dy=target.y-sy,len=Math.hypot(dx,dy);
+  bullets.push({x:sx,y:sy,vx:dx/len*bulletSpeed,vy:dy/len*bulletSpeed,tx:target.x,ty:target.y,target});
+}
+function explode(x,y){explosions.push({x,y,r:15,alpha:1,maxLife:.3,life:.3});}
+
+/* ========= スコア／ライフ／トースト ========= */
+function addScore(v){score+=v;scoreEl.textContent="Score "+score;}
+function loseLife(){if(infinite)return;if(--lives<=0){endGame("ライフ0");return;}updateLives();}
+function toastElem(d){
+  toast.innerHTML=`<strong>${d.sym}</strong> / ${d.ja} (${d.en})<br>原子番号: ${d.num} – ${d.fact}`;
+  toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove("show"),3000);
+}
+function endGame(reason){running=false;setTimeout(()=>alert(`Game Over (${reason})\nScore: ${score}`),20);titleDiv.style.display="flex";gameDiv.style.display="none";}
+
+/* ========= 入力判定：IME 対応 ========= */
+input.addEventListener("keydown",e=>{if(e.key==="Enter")e.preventDefault();});
+input.addEventListener("keyup",e=>{
+  if(e.key!=="Enter")return;              // Enter だけ処理
+  const txtRaw=input.value;               // ★ 変換確定後の値を取得
+  input.value="";                         // ★ 即クリア
+  const txt=txtRaw.trim().toLowerCase();
+  if(!txt)return;
+  const idx=elems.findIndex(el=>mode==="A"?[el.data.en.toLowerCase(),el.data.ja].includes(txt):el.data.sym.toLowerCase()===txt);
+  if(idx!==-1)fire(elems[idx]);
+});
+</script>
+</body>
+</html>
