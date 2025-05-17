@@ -1,0 +1,112 @@
+<!--  index.html  —  Element Shoot 6-Mode Prototype  -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Element Shoot — 6 Modes</title>
+
+<!-- ---------------  一括スタイル --------------- -->
+<style>
+html,body{margin:0;height:100%;font-family:sans-serif;background:#111;color:#fff;overflow:hidden}
+
+/* ─── 2 カラムレイアウト ─── */
+#layout{display:flex;height:100%}
+#left  {flex:0 0 70%;position:relative;overflow:hidden}   /* ゲーム領域 */
+#right {flex:0 0 30%;background:#181818;display:flex;
+        justify-content:center;align-items:flex-start;padding-top:40px}
+
+/* ─── タイトル / ゲーム画面共通 ─── */
+#title,#game{position:absolute;inset:0;display:flex;flex-direction:column;
+             align-items:center;justify-content:center}
+
+/* ----- HUD & 入力欄 ----- */
+button,input{font-size:1rem;padding:.45rem 1rem;margin:.3rem;border:none;border-radius:4px}
+#hud{display:flex;gap:1.1rem;justify-content:center;align-items:center;
+     padding:.4rem;background:#222;width:100%}
+#inputRow{padding:.3rem;background:#222;width:100%;display:flex;justify-content:center}
+#userInput{width:200px;text-align:center}
+
+/* ----- ゲームキャンバス ----- */
+canvas{background:#000;border-top:2px solid #444}
+
+/* ----- Toast（右側 30% 域）----- */
+#toast{max-width:90%;background:#2a2a2a;border:2px solid #f8c53a;border-radius:10px;
+       padding:1rem;font-size:.88rem;line-height:1.55;opacity:0;transform:translateX(20px);
+       box-shadow:0 0 14px #f8c53add;pointer-events:none;
+       transition:opacity .35s,transform .35s}
+#toast.show{opacity:1;transform:translateX(0)}
+#toast strong{font-size:1.1rem;color:#f8c53a}
+fieldset{border:none}label{cursor:pointer;color:#ddd}
+legend{color:#f8c53a;font-weight:600;margin-bottom:.2em}
+</style>
+</head>
+
+<body>
+  <div id="layout">
+    <!-- ───────── 左：ゲーム領域 ───────── -->
+    <div id="left">
+
+      <!-- ----- タイトル画面 ----- -->
+      <div id="title">
+        <h1 style="margin-bottom:.6rem">ELEMENT&nbsp;SHOOT</h1>
+
+        <fieldset>
+          <legend>モード</legend>
+          <label><input type="radio" name="mode" value="A" checked> A&nbsp;記号→名前</label><br>
+          <label><input type="radio" name="mode" value="B"> B&nbsp;記号→番号</label><br>
+          <label><input type="radio" name="mode" value="C"> C&nbsp;名前→記号</label><br>
+          <label><input type="radio" name="mode" value="D"> D&nbsp;名前→番号</label><br>
+          <label><input type="radio" name="mode" value="E"> E&nbsp;番号→名前</label><br>
+          <label><input type="radio" name="mode" value="F"> F&nbsp;番号→記号</label>
+        </fieldset>
+
+        <fieldset>
+          <legend>レベル</legend>
+          <label><input type="radio" name="level" value="1" checked> LV1 (1-36)</label><br>
+          <label><input type="radio" name="level" value="2"> LV2 (～86)</label><br>
+          <label><input type="radio" name="level" value="3"> LV3 (～118)</label>
+        </fieldset>
+
+        <div>
+          ゲーム時間(秒):
+          <input id="timeInput" type="number" min="10" max="600" value="60"
+                 style="width:70px;text-align:right">
+        </div>
+        <div>
+          ライフ数(0 = ∞):
+          <input id="lifeInput" type="number" min="0" max="99" value="0"
+                 style="width:60px;text-align:right">
+        </div>
+
+        <button id="startBtn">▶ START</button>
+      </div>
+
+      <!-- ----- ゲーム画面 ----- -->
+      <div id="game" style="display:none;">
+        <div id="hud">
+          <span id="modeLabel"></span>
+          <span id="timer"></span>
+          <span id="score"></span>
+          <span id="lives"></span>
+          <button id="stopBtn" style="background:#c33">STOP</button>
+        </div>
+
+        <!-- Canvas: 480×640 だが親 flex に合わせ拡大可 -->
+        <canvas id="field" width="480" height="640"></canvas>
+
+        <div id="inputRow">
+          <input id="userInput" placeholder="タイプして Enter" autocomplete="off">
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── 右：Toastエリア ───────── -->
+    <div id="right">
+      <div id="toast"></div>
+    </div>
+  </div>
+
+  <!-- ---------- モジュール読み込み ---------- -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>
