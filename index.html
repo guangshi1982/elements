@@ -30,10 +30,22 @@ button,input{font-size:1rem;padding:.45rem 1rem;margin:.3rem;border:none;border-
 canvas{background:#000;border-top:2px solid #444}
 
 /* ----- Toast（右側 30% 域）----- */
-#toast{max-width:90%;background:#2a2a2a;border:2px solid #f8c53a;border-radius:10px;
-       padding:1rem;font-size:.88rem;line-height:1.55;opacity:0;transform:translateX(20px);
-       box-shadow:0 0 14px #f8c53add;pointer-events:none;
-       transition:opacity .35s,transform .35s}
+#toast{
+  max-width:90%;
+  background:#2a2a2a;
+  border:2px solid #f8c53a;
+  border-radius:10px;
+  padding:1rem;
+  font-size:.88rem;
+  line-height:1.55;
+  opacity:0;
+  transform:translateX(20px);
+  box-shadow:0 0 14px #f8c53add;
+  max-height:80vh;          /* ★ 追加：縦方向は 80% 高さで固定 */
+  overflow-y:auto;          /* ★ 追加：内容があふれたら内部スクロール */
+  /* pointer-events:none; */
+  transition:opacity .35s,transform .35s;
+}
 #toast.show{opacity:1;transform:translateX(0)}
 #toast strong{font-size:1.1rem;color:#f8c53a}
 fieldset{border:none}label{cursor:pointer;color:#ddd}
