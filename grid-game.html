@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>元素周期表ゲーム</title>
+  <style>
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+    }
+    #top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+    }
+    #levelSelector {
+      font-size: 16px;
+      padding: 6px 12px;
+    }
+    #grid {
+      flex: 1 1 auto;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: repeat(18, 64px);
+      grid-template-rows: repeat(9, 64px);
+      gap: 2px;
+      padding: 20px;
+      justify-content: center;
+    }
+    .cell {
+      background: #222;
+      border: 1px solid #333;
+      font-size: 12px;
+      text-align: center;
+      position: relative;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+      word-break: keep-all;
+      white-space: nowrap;
+    }
+    .cell.empty {
+      visibility: hidden;
+    }
+    .cell .num {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 9px;
+      color: #aaa;
+    }
+    .cell .sym {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .cell .name {
+      font-size: 10px;
+      color: #ccc;
+    }
+    .cell.active {
+      background: #0055aa;
+      animation: blink 1s infinite alternate;
+    }
+    .cell.hit {
+      background: #22aa22;
+    }
+    .cell.miss {
+      background: #aa2222;
+    }
+    @keyframes blink {
+      from { background-color: #0055aa; }
+      to   { background-color: #0077dd; }
+    }
+    #controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+    input {
+      padding: 8px;
+      font-size: 16px;
+      width: 260px;
+    }
+    #score {
+      margin-top: 10px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
+  <div id="top">
+    <div style="margin-left: 10px;">Level:
+      <select id="levelSelector">
+        <option value="1" selected>Level 1 (1–36)</option>
+        <option value="2">Level 2 (1–86)</option>
+        <option value="3">Level 3 (全て)</option>
+      </select>
+    </div>
+    <div style="margin-right: 10px;">
+      <button onclick="location.href='index.html'">ホームに戻る</button>
+    </div>
+  </div>
+  <div id="grid"></div>
+  <div id="controls" style="margin-bottom: 10px;">
+    <input id="input" placeholder="記号または名前を入力" />
+    <div id="score">Score: 0</div>
+  </div>
+
+  <script type="module">
+    import { ELEMENTS } from './elements.js';
+    const grid = document.getElementById('grid');
+    const input = document.getElementById('input');
+    const scoreEl = document.getElementById('score');
+    const levelSel = document.getElementById('levelSelector');
+    let score = 0;
+    let active = null;
+    let blocks = {};
+
+    import { ELEMENTS_LAYOUT } from './elements_layout.js'; // ← 実際の配置データをここに差し込んでください
+
+    function createGrid(level) {
+      grid.innerHTML = '';
+      blocks = {};
+      for (let y = 1; y <= 9; y++) {
+        for (let x = 1; x <= 18; x++) {
+          const val = ELEMENTS_LAYOUT.get(`${x},${y}`);
+          const cell = document.createElement('div');
+          if (!val) {
+            cell.className = 'cell empty';
+          } else {
+            cell.className = 'cell';
+            if (typeof val === 'number') {
+              const el = ELEMENTS.find(e => e.num === val);
+              if (el) {
+                cell.dataset.num = el.num;
+                cell.innerHTML = `<div class="num">${el.num}</div>`;
+                blocks[el.num] = cell;
+              }
+            } else if (typeof val === 'string') {
+              cell.innerHTML = `<div style="font-size:14px;color:#ccc">${val}</div>`;
+            }
+          }
+          grid.appendChild(cell);
+        }
+      }
+    }
+
+    function pickRandom() {
+      const level = parseInt(levelSel.value);
+      const pool = Object.values(blocks).filter(b => {
+        const num = parseInt(b.dataset.num);
+        if (!num || b.classList.contains('hit') || b.classList.contains('miss')) return false;
+        if (level === 1) return num <= 36;
+        if (level === 2) return num <= 86;
+        return true;
+      });
+      if (pool.length === 0) return;
+      if (active) active.classList.remove('active');
+      active = pool[Math.floor(Math.random() * pool.length)];
+      active.classList.add('active');
+    }
+
+    input.addEventListener('keyup', e => {
+      if (e.key !== 'Enter' || !active) return;
+      const val = input.value.trim().toLowerCase();
+      input.value = '';
+      const num = parseInt(active.dataset.num);
+      const el = ELEMENTS.find(e => e.num === num);
+      if (val === el.sym.toLowerCase() || val === el.en.toLowerCase() || val === el.ja) {
+        active.classList.remove('active');
+        active.classList.add('hit');
+        active.innerHTML = `<div class="num">${el.num}</div><div class="sym">${el.sym}</div><div class="name">${el.ja}</div>`;
+        score += 10;
+        scoreEl.textContent = `Score: ${score}`;
+        setTimeout(pickRandom, 1000);
+      } else {
+        active.classList.remove('active');
+        active.classList.add('miss');
+        active.innerHTML = `<div class="num">${el.num}</div><div class="sym">${el.sym}</div><div class="name">${el.ja}</div>`;
+        setTimeout(pickRandom, 1000);
+      }
+    });
+
+    levelSel.addEventListener('change', () => {
+      createGrid(parseInt(levelSel.value));
+      score = 0;
+      scoreEl.textContent = 'Score: 0';
+      pickRandom();
+    });
+
+    createGrid(parseInt(levelSel.value));
+    pickRandom();
+  </script>
+</body>
+</html>
