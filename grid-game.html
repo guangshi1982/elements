@@ -94,6 +94,36 @@
       margin-top: 10px;
       font-size: 18px;
     }
+    .cell[data-num]:hover::after {
+      content: attr(data-hint);
+      position: absolute;
+      bottom: -1.8em;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.5);
+      color: #ccc;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .cell .sym,
+    .cell .name {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .cell:hover .sym,
+    .cell:hover .name {
+      opacity: 0.3;
+    }
+    .cell.hit .sym,
+    .cell.hit .name,
+    .cell.miss .sym,
+    .cell.miss .name {
+      opacity: 1;
+    }
+
   </style>
 </head>
 <body style="display: flex; flex-direction: column; height: 100vh; overflow: hidden;">
@@ -142,7 +172,8 @@
               const el = ELEMENTS.find(e => e.num === val);
               if (el) {
                 cell.dataset.num = el.num;
-                cell.innerHTML = `<div class="num">${el.num}</div>`;
+                cell.dataset.hint = `No.${el.num} ${el.sym} ${el.en} ${el.ja}`;
+                cell.innerHTML = `<div class=\"num\">${el.num}</div><div class=\"sym\">${el.sym}</div><div class=\"name\">${el.ja}</div>`;
                 blocks[el.num] = cell;
               }
             } else if (typeof val === 'string') {
@@ -178,14 +209,12 @@
       if (val === el.sym.toLowerCase() || val === el.en.toLowerCase() || val === el.ja) {
         active.classList.remove('active');
         active.classList.add('hit');
-        active.innerHTML = `<div class="num">${el.num}</div><div class="sym">${el.sym}</div><div class="name">${el.ja}</div>`;
         score += 10;
         scoreEl.textContent = `Score: ${score}`;
         setTimeout(pickRandom, 1000);
       } else {
         active.classList.remove('active');
         active.classList.add('miss');
-        active.innerHTML = `<div class="num">${el.num}</div><div class="sym">${el.sym}</div><div class="name">${el.ja}</div>`;
         setTimeout(pickRandom, 1000);
       }
     });
